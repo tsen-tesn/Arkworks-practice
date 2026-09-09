@@ -1,17 +1,17 @@
-use crate::multiset::multiset::{MultiSet, MultiSetError};
+use crate::multiset::multiset::MultiSet;
 use ark_bls12_381::Fr;
 use ark_ff::One;
 
-pub fn compute_h1_h2(f: &MultiSet, t:&MultiSet) -> Result<(MultiSet, MultiSet), MultiSetError> {
+pub fn compute_h1_h2(f: &MultiSet, t: &MultiSet) -> (MultiSet, MultiSet) {
     // Compute s
-    let sorted_s = f.concatenate_and_sort(t)?;
+    let sorted_s = f.concatenate_and_sort(t);
 
     // Compute h_1, h_2
     let (h_1, h_2) = sorted_s.halve();
 
     // assert that the last element of h_1 is equal to the first element of h_2
     assert_eq!(h_1.last(), h_2.as_slice()[0]);
-    Ok((h_1, h_2))
+    (h_1, h_2)
 }
 
 fn compute_f_i(i: usize, f: &MultiSet, t: &MultiSet, beta: Fr, gamma: Fr) -> Fr {
@@ -81,7 +81,7 @@ mod test {
         let beta = Fr::from(8u64);
         let gamma = Fr::from(10u64);
 
-        let (h_1, h_2) = compute_h1_h2(&f, &t).unwrap();
+        let (h_1, h_2) = compute_h1_h2(&f, &t);
         let z = compute_accumulator_values(&f, &t, &h_1, &h_2, beta, gamma);
 
         let beta_one = Fr::one() + beta;
@@ -115,7 +115,7 @@ mod test {
         let f = MultiSet::from_slice(&compressed_witness);
         let t = MultiSet::from_slice(&compressed_table);
 
-        let (h_1, h_2) = compute_h1_h2(&f, &t).unwrap();
+        let (h_1, h_2) = compute_h1_h2(&f, &t);
 
         let domain: Radix2EvaluationDomain<Fr> = EvaluationDomain::new(h_1.len()).unwrap();
         let h_1_poly = h_1.to_polynomial(&domain);

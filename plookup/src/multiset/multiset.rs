@@ -1,13 +1,8 @@
 use ark_bls12_381::Fr;
-use ark_poly::{univariate::DensePolynomial, DenseUVPolynomial, EvaluationDomain};
+use ark_poly::{polynomial::univariate::DensePolynomial as Polynomial, DenseUVPolynomial, EvaluationDomain};
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct MultiSet(pub Vec<Fr>);
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum MultiSetError {
-    WitnessRowNotInTable,
-}
 
 impl MultiSet {
     // Creates an empty Multiset
@@ -53,31 +48,35 @@ impl MultiSet {
 
     // Checks whether self is a subset of other
     pub fn is_subset_of(&self, other: &MultiSet) -> bool {
-        self.0.iter().all(|x| other.contains(x))
+        let mut is_subset = true;
+
+        for x in self.0.iter() {
+            is_subset = other.contains(x);
+            if is_subset == false {
+                break;
+            }
+        }
+        is_subset
     }
 
     // Returns the position of the element in the Multiset
     // Returns None if the element is not in the Multiset
-    pub fn position(&self, element: &Fr) -> Option<usize> {
-        self.0.iter().position(|&x| x == *element)
+    pub fn position(&self, element: &Fr) -> usize {
+        let index = self.0.iter().position(|&x| x == *element).unwrap();
+        index
     }
 
     // s = sort(f || t)
-    pub fn concatenate_and_sort(&self, t: &MultiSet) -> Result<MultiSet, MultiSetError> {
-        if !self.is_subset_of(t) {
-            return Err(MultiSetError::WitnessRowNotInTable);
-        }
-
+    pub fn concatenate_and_sort(&self, t: &MultiSet) -> MultiSet {
+        assert!(self.is_subset_of(t));
         let mut result = t.clone();
 
         for element in self.0.iter() {
-            let index = result
-                .position(element)
-                .ok_or(MultiSetError::WitnessRowNotInTable)?;
+            let index = result.position(element);
             result.0.insert(index, *element);
         }
 
-        Ok(result)
+        result
     }
     
     // Splits a multiset into halves as specified by the paper
@@ -98,8 +97,8 @@ impl MultiSet {
     // Treats each element in the multiset as evaluation points
     // Computes IFFT of the set of evaluation points
     // and returns the coefficients as a Polynomial data structure
-    pub fn to_polynomial<E: EvaluationDomain<Fr>>(&self, domain: &E) -> DensePolynomial<Fr> {
-        DensePolynomial::from_coefficients_vec(domain.ifft(&self.0))
+    pub fn to_polynomial<E: EvaluationDomain<Fr>>(&self, domain: &E) -> Polynomial<Fr> {
+        Polynomial::from_coefficients_vec(domain.ifft(&self.0))
     }
 }
 
@@ -190,8 +189,7 @@ mod test {
     fn position_finds_index_of_first_match() {
         let ms = MultiSet::from_slice(&fr(&[1, 2, 3]));
 
-        assert_eq!(ms.position(&Fr::from(2u64)), Some(1));
-        assert_eq!(ms.position(&Fr::from(9u64)), None);
+        assert_eq!(ms.position(&Fr::from(2u64)), 1);
     }
 
     // ---- concatenate_and_sort ----
@@ -202,7 +200,7 @@ mod test {
         let table = MultiSet::from_slice(&fr(&[1, 2, 3, 4, 5, 6, 7, 8]));
         let witness = MultiSet::from_slice(&fr(&[2, 2, 5, 8, 1, 1, 3]));
 
-        let sorted = witness.concatenate_and_sort(&table).unwrap();
+        let sorted = witness.concatenate_and_sort(&table);
 
         assert_eq!(table.len(), 8);
         assert_eq!(witness.len(), 7);
@@ -214,22 +212,12 @@ mod test {
         let table = MultiSet::from_slice(&fr(&[1, 2, 3, 4, 5, 6, 7, 8]));
         let witness = MultiSet::from_slice(&fr(&[2, 2, 5, 8, 1, 1, 3]));
 
-        let sorted = witness.concatenate_and_sort(&table).unwrap();
+        let sorted = witness.concatenate_and_sort(&table);
 
         // Hand-verified: each table row v that is queried k times in the
         // witness appears k + 1 times, grouped together, in table order.
         let expected = fr(&[1, 1, 1, 2, 2, 2, 3, 3, 4, 5, 5, 6, 7, 8, 8]);
         assert_eq!(sorted.as_slice(), expected.as_slice());
-    }
-
-    #[test]
-    fn concatenate_and_sort_rejects_witness_row_not_in_table() {
-        let table = MultiSet::from_slice(&fr(&[1, 2, 3, 4, 5, 6, 7, 8]));
-        let witness = MultiSet::from_slice(&fr(&[2, 2, 5, 9, 1, 1, 3]));
-
-        let result = witness.concatenate_and_sort(&table);
-
-        assert_eq!(result, Err(MultiSetError::WitnessRowNotInTable));
     }
 
     // ---- halve ----
@@ -238,7 +226,7 @@ mod test {
     fn halve_splits_with_overlap() {
         let table = MultiSet::from_slice(&fr(&[1, 2, 3, 4, 5, 6, 7, 8]));
         let witness = MultiSet::from_slice(&fr(&[2, 2, 5, 8, 1, 1, 3]));
-        let sorted = witness.concatenate_and_sort(&table).unwrap();
+        let sorted = witness.concatenate_and_sort(&table);
 
         let (h1, h2) = sorted.halve();
 
@@ -284,7 +272,7 @@ mod test {
         let witness_ms = MultiSet::from_slice(&compressed_witness);
         let table_ms = MultiSet::from_slice(&compressed_table);
 
-        let sorted = witness_ms.concatenate_and_sort(&table_ms).unwrap();
+        let sorted = witness_ms.concatenate_and_sort(&table_ms);
 
         assert_eq!(witness_ms.len(), 63);
         assert_eq!(table_ms.len(), 64);

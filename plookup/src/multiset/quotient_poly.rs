@@ -241,7 +241,7 @@ mod test {
         let gamma = Fr::from(11u64);
 
         let (h_1, h_2) = compute_h1_h2(&f, &t);
-        let f_poly = f.to_polynomial(&domain);
+        let f_poly = f.to_polynomial(&domain);             
         let t_poly = t.to_polynomial(&domain);
         let h_1_poly = h_1.to_polynomial(&domain);
         let h_2_poly = h_2.to_polynomial(&domain);

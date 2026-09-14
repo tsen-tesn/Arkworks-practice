@@ -2,5 +2,6 @@
 resolver = "2"
 members = [
     "linear transformation",
-    "plookup"
+    "plookup",
+    "FC_plookup"
 ]

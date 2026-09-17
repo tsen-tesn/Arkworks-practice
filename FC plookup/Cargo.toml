@@ -1,0 +1,13 @@
+[package]
+name = "fc-plookup"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ark-bls12-381 = "0.5"
+ark-ff = "0.5"
+ark-poly = "0.5"
+ark-poly-commit = "0.5"
+ark-serialize = "0.5"
+merlin = "3"
+plookup = { path = "../plookup" }
